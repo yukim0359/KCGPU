@@ -153,10 +153,10 @@ namespace graph
             assert(ptr != nullptr);
            
             std::istream& input_stream = market_file;
-            size_t i = 0;
+            size_t out = 0;
             bool succeed = true;
 
-            for (; i < n; ++i)
+            for (size_t line_idx = 0; line_idx < n; ++line_idx)
             {
                 succeed = true;
                 std::string line;
@@ -219,18 +219,21 @@ namespace graph
                 {
                     if (ll_col != ll_row)
                     {
-                        ptr[i].first = static_cast<T>(ll_row);
-                        ptr[i].second = static_cast<T>(ll_col);
+                        --ll_row;
+                        --ll_col;
+                        ptr[out].first = static_cast<T>(ll_row);
+                        ptr[out].second = static_cast<T>(ll_col);
+                        out++;
                         if (mfp.symmetric)
                         {
-                            ptr[i].first = static_cast<T>(ll_col);
-                            ptr[i].second = static_cast<T>(ll_row);
-                            i++;
+                            ptr[out].first = static_cast<T>(ll_col);
+                            ptr[out].second = static_cast<T>(ll_row);
+                            out++;
                         }
                     }
                 }
             }
-            return i;
+            return out;
         }
 
 
@@ -386,7 +389,7 @@ namespace graph
                 const size_t n                 //!< [in] the number of edges to try to read
             ) {
             //SPDLOG_TRACE(logger::console(), "requested {} edges", n);
-            edges.resize(n);
+            edges.resize(type_ == FileType::MTX && mfp.symmetric ? 2 * n : n);
 
             size_t numRead;
             switch (type_) {

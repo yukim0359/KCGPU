@@ -1,5 +1,8 @@
 NVCC = nvcc
 TARGET_EXEC ?= a.out
+CUDA_ARCH ?= 90
+CUDA_ARCH_CODE := $(patsubst sm_%,%,$(CUDA_ARCH))
+CXX_STD ?= c++17
 
 BUILD_DIR ?= ./build
 SRC_DIRS ?= ./src
@@ -13,11 +16,16 @@ EXES := $(SRCS:%=$(BUILD_DIR)/exe/%.exe)
 DEPS := $(OBJS:.o=.d)
 
 #INCL_DIRS := $(shell find $(INC_DIRS) -type d) ./include $(FREESTAND_DIR)/include 
-INCL_DIRS := #./include $(FREESTAND_DIR)/include 
+INCL_DIRS := ./include ./kclique
 INC_FLAGS := $(addprefix -I,$(INCL_DIRS))
+KCGPU_PROFILE ?= 0
+KCPROFILE_MAX_SAMPLES ?= 65536
 LDFLAGS := 	
-CPPFLAGS ?= $(INC_FLAGS) -Wall -pthread -MMD -MP -shared -fPIC -std=c++11 -O3 -mavx -ftree-vectorize -fopt-info-vec
-CUDAFLAGS = $(INC_FLAGS) -g -w -lineinfo -std=c++11 -O3 -DCUDA -DNOT_IMPL -arch=sm_70 -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_70,code=compute_70 -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_75,code=compute_75
+CPPFLAGS ?= $(INC_FLAGS) -Wall -pthread -MMD -MP -shared -fPIC -std=$(CXX_STD) -O3 -mavx -ftree-vectorize -fopt-info-vec
+CUDAFLAGS = $(INC_FLAGS) -g -w -lineinfo -std=$(CXX_STD) -O3 -DCUDA -DNOT_IMPL -arch=sm_$(CUDA_ARCH_CODE) -gencode=arch=compute_$(CUDA_ARCH_CODE),code=sm_$(CUDA_ARCH_CODE) -gencode=arch=compute_$(CUDA_ARCH_CODE),code=compute_$(CUDA_ARCH_CODE)
+ifeq ($(KCGPU_PROFILE),1)
+CUDAFLAGS += -DKCGPU_PROFILE=1 -DKCPROFILE_MAX_SAMPLES=$(KCPROFILE_MAX_SAMPLES)
+endif
 
 
 all: objs exes

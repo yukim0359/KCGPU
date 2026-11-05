@@ -23,7 +23,13 @@
 #include "../include/main_support.cuh"
 
 #include "../kcore/kcore.cuh"
+#if KCGPU_PROFILE
+#define KCPROFILE_DEFINE_SYMBOLS
+#endif
 #include "../kclique/kclique.cuh"
+#if KCGPU_PROFILE
+#undef KCPROFILE_DEFINE_SYMBOLS
+#endif
 #include "../kclique/kclique_local.cuh"
 
 
@@ -162,6 +168,8 @@ int main(int argc, char** argv)
     Log(info, "Transfer Time: %f s", total);
 
     Timer t;
+    Timer kclique_e2e;
+    const bool measure_kclique_e2e = (config.mt == KCLIQUE);
     graph::SingleGPU_Kcore<uint, PeelType> mohacore(config.deviceId);
     if (config.orient == Degree || config.orient == Degeneracy)
     {
@@ -577,7 +585,20 @@ int main(int argc, char** argv)
                     mohaclique.sync();
                     double time = t.elapsed();
                     Log(info, "count time %f s", time);
-                    Log(info, "MOHA %d k-clique (%f teps)", mohaclique.count(), m / time);
+                    if (measure_kclique_e2e) {
+                        double e2e_time = kclique_e2e.elapsed();
+                        Log(info, "count end-to-end time %f s", e2e_time);
+                        Log(info, "MOHA %d k-clique (%f teps)", mohaclique.count(), m / e2e_time);
+                    } else {
+                        Log(info, "MOHA %d k-clique (%f teps)", mohaclique.count(), m / time);
+                    }
+#if KCGPU_PROFILE
+                    kcp_profile_export_csv(
+                        config.deviceId,
+                        config.kcConfig.Algo == KCAlgoEnum::Pivoting
+                            ? "kcgpu_pivot"
+                            : "kcgpu_orientation");
+#endif
                 }
 
                 //k++;
@@ -749,5 +770,3 @@ int main(int argc, char** argv)
     //B.freeGPU();
     return 0;
 }
-
-

@@ -27,6 +27,7 @@
 #include "kckernels_orientation.cuh"
 #include "kckernels_pivoting.cuh"
 #include "kckernels.cuh"
+#include "../include/kcprofile_host.hpp"
 
 
 template <typename T, uint BLOCK_DIM_X, uint CPARTSIZE>
@@ -1693,7 +1694,7 @@ namespace graph
 
 			FILE *infile;
 			GPUArray<unsigned long long> nCr("bmp bitmap stats", AllocationTypeEnum::gpu, 1001*401, dev_);
-			infile = fopen("/home/almasri3/mewcp-gpu/kclique/nCr.txt","r"); //change it
+			infile = fopen("kclique/nCr.txt","r");
 			double d=0;
 			if(infile==NULL)
 			{
@@ -1801,6 +1802,9 @@ namespace graph
 				if (current_q.count.gdata()[0] > 0)
 				{
 					auto grid_block_size =  current_q.count.gdata()[0];
+#if KCGPU_PROFILE
+					kcp_profile_reset(dev_);
+#endif
 					execKernel((kckernel_node_block_warp_binary_pivot_count<T, block_size, partitionSize>), grid_block_size, block_size, dev_, false,
 						counter.gdata(),
 						g,
@@ -1855,7 +1859,7 @@ namespace graph
 
 			FILE *infile;
 			GPUArray<unsigned long long> nCr("bmp bitmap stats", AllocationTypeEnum::gpu, 1001*401, dev_);
-			infile = fopen("/home/almasri3/mewcp-gpu/kclique/nCr.txt","r"); //change it
+			infile = fopen("kclique/nCr.txt","r");
 			double d=0;
 			if(infile==NULL)
 			{
@@ -2256,6 +2260,9 @@ namespace graph
 					// );
 
 
+#if KCGPU_PROFILE
+					kcp_profile_reset(dev_);
+#endif
 					execKernel((kckernel_edge_block_warp_binary_count_o2<T, block_size, partitionSize, 8, EdgeStartLevelOr>), grid_block_size, block_size, dev_, false,
 						counter.gdata(),
 						g,
@@ -2300,7 +2307,7 @@ namespace graph
 
 			FILE *infile;
 			GPUArray<unsigned long long> nCr("bmp bitmap stats", AllocationTypeEnum::gpu, 1001*401, dev_);
-			infile = fopen("/home/almasri3/mewcp-gpu/kclique/nCr.txt","r"); //change it
+			infile = fopen("kclique/nCr.txt","r");
 			double d=0;
 			if(infile==NULL)
 			{
@@ -2410,6 +2417,9 @@ namespace graph
 
 						auto grid_block_size = current_q.count.gdata()[0];
 
+#if KCGPU_PROFILE
+						kcp_profile_reset(dev_);
+#endif
 						execKernel((kckernel_edge_block_warp_binary_pivot_count<T, block_size, partitionSize>), grid_block_size, block_size, dev_, false,
 							counter.gdata(),
 							g,
@@ -2426,7 +2436,6 @@ namespace graph
 							level_temp.gdata(),
 							nCr.gdata()
 						);
-
 
 						current_level2.freeGPU();
 				}
@@ -2469,7 +2478,7 @@ namespace graph
 
 			FILE *infile;
 			GPUArray<unsigned long long> nCr("bmp bitmap stats", AllocationTypeEnum::gpu, 1001*401, dev_);
-			infile = fopen("/home/almasri3/mewcp-gpu/kclique/nCr.txt","r"); //change it
+			infile = fopen("kclique/nCr.txt","r");
 			double d=0;
 			if(infile==NULL)
 			{

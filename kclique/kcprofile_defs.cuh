@@ -1,0 +1,18 @@
+#pragma once
+
+#ifndef KCGPU_PROFILE
+#define KCGPU_PROFILE 0
+#endif
+
+#ifndef KCPROFILE_MAX_WORKERS
+#define KCPROFILE_MAX_WORKERS 4096
+#endif
+#ifndef KCPROFILE_MAX_SAMPLES
+#define KCPROFILE_MAX_SAMPLES 65536
+#endif
+#ifndef KCPROFILE_MAX_BLOCKS
+#define KCPROFILE_MAX_BLOCKS 256
+#endif
+#ifndef KCPROFILE_MAX_SMS
+#define KCPROFILE_MAX_SMS 132
+#endif

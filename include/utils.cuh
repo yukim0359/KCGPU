@@ -24,7 +24,7 @@
 #include <cuda_runtime_api.h>
 
 
-#include "../cub/cub.cuh"
+#include <cub/cub.cuh>
 
 
 // #include <simt/cstdint>

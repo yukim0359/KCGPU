@@ -1,5 +1,7 @@
 #pragma once
 
+#include "kcprofile.cuh"
+
 /////////////////////////////////////////// Latest Kernels ///////////////////////////////////////////////////
 
 
@@ -2302,6 +2304,9 @@ kckernel_edge_block_warp_binary_pivot_count(
     __shared__ T lo, level_item_offset;
     __shared__ T maxCount[numPartitions], maxIndex[numPartitions], partMask[numPartitions];
     __shared__ 	T lastMask_i, lastMask_ii;
+#if KCGPU_PROFILE
+    __shared__ unsigned long long kcp_node_visits;
+#endif
 
     if (threadIdx.x == 0)
     {
@@ -2317,6 +2322,12 @@ kckernel_edge_block_warp_binary_pivot_count(
 
     for (unsigned long long i = blockIdx.x; i < (unsigned long long)current.count[0]; i += gridDim.x)
     {
+#if KCGPU_PROFILE
+        if (threadIdx.x == 0) {
+            kcp_profile_mark_working(kcp_worker_slot_id((int)sm_id, (int)levelPtr, (int)CBPSM), 0);
+            kcp_node_visits = 0ULL;
+        }
+#endif
         //block things
         if (threadIdx.x == 0)
         {
@@ -2450,6 +2461,13 @@ kckernel_edge_block_warp_binary_pivot_count(
             atomicAdd(&(level_count[0]), (T)warpCount);
         }
         __syncthreads();
+#if KCGPU_PROFILE
+        if (threadIdx.x == 0) {
+            if (level_count[0] > 0) {
+                kcp_node_visits += 1ULL;
+            }
+        }
+#endif
         while((level_count[l - 3] > level_index[l - 3]))
         {
             T maskBlock = level_prev_index[l- 3] / 32;
@@ -2462,6 +2480,11 @@ kckernel_edge_block_warp_binary_pivot_count(
                 newIndex = __ffs(pl[num_divs_local*(l-3) + maskBlock] & maskIndex);
             }
             newIndex =  32*maskBlock + newIndex - 1;
+#if KCGPU_PROFILE
+            if (threadIdx.x == 0) {
+                kcp_node_visits += 1ULL;
+            }
+#endif
             T sameBlockMask = (~((1 << (newIndex & 0x1F)) - 1))   | ~pl[num_divs_local*(l-3) + maskBlock];
             __syncthreads();
             if (threadIdx.x == 0)
@@ -2619,6 +2642,13 @@ kckernel_edge_block_warp_binary_pivot_count(
             }
             __syncthreads();
         }
+#if KCGPU_PROFILE
+        __syncthreads();
+        if (threadIdx.x == 0) {
+            kcp_profile_add_node_visits((int)sm_id, kcp_node_visits, 0ULL);
+            kcp_profile_mark_not_working(kcp_worker_slot_id((int)sm_id, (int)levelPtr, (int)CBPSM), 0);
+        }
+#endif
 
     }
 
@@ -2628,6 +2658,3 @@ kckernel_edge_block_warp_binary_pivot_count(
         atomicCAS(&levelStats[sm_id * CBPSM + levelPtr], 1, 0);
     }
 }
-
-
-

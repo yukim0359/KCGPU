@@ -1,5 +1,7 @@
 #pragma once
 
+#include "kcprofile.cuh"
+
 template<typename T, uint CPARTSIZE>
 __device__ void build_induced_subgraph(
     const int wx, const size_t lx,
@@ -506,6 +508,9 @@ kckernel_edge_block_warp_binary_count_o2(
 	__shared__ T srcStart, srcLen;
 	__shared__ T src2Start, src2Len;
 	__shared__ T num_divs_local, encode_offset, *encode, tri_offset, *tri, scounter;
+#if KCGPU_PROFILE
+	__shared__ unsigned long long kcp_node_visits[numPartitions];
+#endif
 
     #define LA l[wx] - SL
 
@@ -514,6 +519,17 @@ kckernel_edge_block_warp_binary_count_o2(
 
 	for (unsigned long long i = blockIdx.x; i < (unsigned long long)current.count[0]; i += gridDim.x)
 	{
+#if KCGPU_PROFILE
+		if (threadIdx.x == 0)
+		{
+			kcp_profile_mark_working(
+				kcp_worker_slot_id((int)sm_id, (int)levelPtr, (int)CBPSM), 0);
+		}
+		if (lx == 0)
+		{
+			kcp_node_visits[wx] = 0ULL;
+		}
+#endif
 		//block things
 		if (threadIdx.x == 0)
 		{
@@ -585,6 +601,9 @@ kckernel_edge_block_warp_binary_count_o2(
 			{
 				level_count[wx][LA] = warpCount;
 				level_prev_index[wx][LA] = 0;
+#if KCGPU_PROFILE
+				kcp_node_visits[wx] += 1ULL;
+#endif
 			}
 		 	__syncwarp(partMask);
 			while (level_count[wx][LA] > 0)
@@ -596,6 +615,12 @@ kckernel_edge_block_warp_binary_count_o2(
                 T maskBlock = level_prev_index[wx][LA] / 32;
                 T maskIndex = ~((1 << (level_prev_index[wx][LA] & 0x1F)) -1);
                 T newIndex = get_next_sibling_index<T>(from, maskIndex, maskBlock);
+#if KCGPU_PROFILE
+				if (lx == 0)
+				{
+					kcp_node_visits[wx] += 1ULL;
+				}
+#endif
 				
 				if (lx == 0)
 				{
@@ -643,6 +668,18 @@ kckernel_edge_block_warp_binary_count_o2(
 			wtc[wx] = atomicAdd(&(tc), 1);
 			__syncwarp(partMask);
 		}
+#if KCGPU_PROFILE
+		if (lx == 0)
+		{
+			kcp_profile_add_node_visits((int)sm_id, kcp_node_visits[wx], 0ULL);
+		}
+		__syncthreads();
+		if (threadIdx.x == 0)
+		{
+			kcp_profile_mark_not_working(
+				kcp_worker_slot_id((int)sm_id, (int)levelPtr, (int)CBPSM), 0);
+		}
+#endif
 	}
 
 	__syncthreads();

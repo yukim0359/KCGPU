@@ -13,6 +13,12 @@ __constant__ uint MAXLEVEL;
 __constant__ uint NUMDIVS;
 __constant__ uint CBPSM;
 
+template <typename T>
+struct KCGPUMax {
+    __host__ __device__ __forceinline__ T operator()(const T& a, const T& b) const {
+        return a < b ? b : a;
+    }
+};
 
 ///////////////////////////// Global ////////////////////////////////////////////
 template <typename T, int BLOCK_DIM_X>
@@ -36,7 +42,7 @@ __global__ void getEdgeDegree_kernel(graph::COOCSRGraph_d<T> g, T* edgePtr, T* m
     }
 
     __syncthreads();
-    T aggregate = BlockReduce(temp_storage).Reduce(degree, cub::Max());
+    T aggregate = BlockReduce(temp_storage).Reduce(degree, KCGPUMax<T>());
 
 
     if (threadIdx.x == 0)
@@ -57,7 +63,7 @@ __global__ void getNodeDegree_kernel(T* nodeDegree, graph::COOCSRGraph_d<T> g, T
         nodeDegree[gtid] = degree;
     }
 
-    T aggregate = BlockReduce(temp_storage).Reduce(degree, cub::Max());
+    T aggregate = BlockReduce(temp_storage).Reduce(degree, KCGPUMax<T>());
     if (threadIdx.x == 0)
         atomicMax(maxDegree, aggregate);
 }

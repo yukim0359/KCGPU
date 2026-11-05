@@ -1,4 +1,6 @@
 #pragma once
+
+#include "kcprofile.cuh"
 template <typename T, uint BLOCK_DIM_X, uint CPARTSIZE>
 __launch_bounds__(BLOCK_DIM_X, 16)
 __global__ void
@@ -45,6 +47,9 @@ kckernel_node_block_warp_binary_pivot_count(
     __shared__ T maxCount[numPartitions], maxIndex[numPartitions], partMask[numPartitions];
 
     __shared__ 	T lastMask_i, lastMask_ii;
+#if KCGPU_PROFILE
+    __shared__ unsigned long long kcp_node_visits;
+#endif
 
     if (threadIdx.x == 0)
     {
@@ -61,6 +66,13 @@ kckernel_node_block_warp_binary_pivot_count(
     for (unsigned long long i = blockIdx.x; i < (unsigned long long)current.count[0]; i += gridDim.x)
     {
         __syncthreads();
+#if KCGPU_PROFILE
+        if (threadIdx.x == 0) {
+            kcp_node_visits = 0ULL;
+            kcp_profile_mark_working(kcp_worker_slot_id((int)sm_id, (int)levelPtr, (int)CBPSM), 0);
+        }
+        __syncthreads();
+#endif
         //block things
         if (threadIdx.x == 0)
         {
@@ -181,8 +193,12 @@ kckernel_node_block_warp_binary_pivot_count(
         while((level_count[l - 2] > level_index[l - 2]))
         {
 
-            if(threadIdx.x == 0)
+            if(threadIdx.x == 0) {
                 atomicAdd(&cpn[sm_id], 1);
+#if KCGPU_PROFILE
+                kcp_node_visits++;
+#endif
+            }
 
             T maskBlock = level_prev_index[l- 2] / 32;
             T maskIndex = ~((1 << (level_prev_index[l - 2] & 0x1F)) -1);
@@ -336,6 +352,13 @@ kckernel_node_block_warp_binary_pivot_count(
             __syncthreads();
             /////////////////////////////////////////////////////////////////////////
         }
+#if KCGPU_PROFILE
+        __syncthreads();
+        if (threadIdx.x == 0) {
+            kcp_profile_add_node_visits((int)sm_id, kcp_node_visits, 0ULL);
+            kcp_profile_mark_not_working(kcp_worker_slot_id((int)sm_id, (int)levelPtr, (int)CBPSM), 0);
+        }
+#endif
     }
 
     __syncthreads();
